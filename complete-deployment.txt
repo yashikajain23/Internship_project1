@@ -1,5 +1,4 @@
-#Convert the file extension to .tf before using terraform commands
-#Version: 1.2
+#Version: 1.3
 terraform {
   required_providers {
     azurerm = {
@@ -286,56 +285,38 @@ resource "azurerm_windows_virtual_machine" "tier1-vm" {
   source_image_reference {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
-    sku       = "2019-Datacenter"
+    sku       = "2016-Datacenter"
     version   = "latest"
   }
 }
 
 #Create Virtual Machine for Tier 2 OR create a Cognitive AI service
-resource "azurerm_virtual_machine" "tier2-vm" {
-  count = "1"
-  name  = "app-0${count.index + 1}"
-
-  location = "${azurerm_resource_group.ResourceGroup.location}"
-
-  resource_group_name              = "${azurerm_resource_group.ResourceGroup.name}"
-  network_interface_ids            = [azurerm_network_interface.Network_Interface-App-1.id,]
-  delete_os_disk_on_termination    = "true"
-  delete_data_disks_on_termination = "true"
-  vm_size                          = "Standard_F2"
+resource "azurerm_linux_virtual_machine" "tier2-vm" {
+  name                = "app-vm-1"
+  resource_group_name = azurerm_resource_group.ResourceGroup.name
+  location            = azurerm_resource_group.ResourceGroup.location
+  size                = "Standard_F2"
+  admin_username      = "tier2-administrator"
+  admin_password      = "Password@AppServer9360"
+  network_interface_ids = [
+    azurerm_network_interface.Network_Interface-App-1.id,
+  ]
+  disable_password_authentication = "false"
   
-  storage_image_reference {
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+    disk_size_gb         = "20"
+  }
+
+  source_image_reference {
     publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-focal"
-    sku       = "20_04-lts"
+    offer     = "UbuntuServer"
+    sku       = "16.04-LTS"
     version   = "latest"
   }
-
-  # Assign vhd blob storage and create a profile
-
-  storage_os_disk {
-    name          = "osdisk${count.index}"
-    caching       = "ReadWrite"
-    create_option = "FromImage"
-    managed_disk_type = "StandardSSD_LRS"
-  }
-  storage_data_disk {
-    name          = "datadisk${count.index}"
-    disk_size_gb  = "30"
-    create_option = "Empty"
-    lun           = 0
-  }
-  os_profile {
-    computer_name  = "webvm-${count.index + 1}"
-    admin_username = "server_admin_username"
-    admin_password = "Password@AppServer9360"
-    
-  }
-  os_profile_linux_config {
-    disable_password_authentication  = "false"
-  }
 }
-
 #Create Database in Tier 3
 resource "azurerm_sql_server" "db-server" {
   name                         = "server-data-tier-1-8129"
@@ -344,7 +325,6 @@ resource "azurerm_sql_server" "db-server" {
   version                      = "12.0"
   administrator_login          = "db-server-admin"
   administrator_login_password = "4-v3ry-53cr37-p455w0rd-23525"
-
 }
 resource "azurerm_sql_database" "db-1" {
   name                = "tier3database"
