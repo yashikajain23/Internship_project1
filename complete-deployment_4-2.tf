@@ -408,7 +408,7 @@ resource "azurerm_cognitive_account" "tier2-cognitive" {
   resource_group_name = azurerm_resource_group.ResourceGroup.name
   kind                = "Face"
   sku_name = "F0"
-  custom_subdomain_name = "identify-face-2532"
+  custom_subdomain_name = "identify-face-ip"
   network_acls{
       default_action = "Deny"
       virtual_network_subnet_ids = [azurerm_subnet.app-tier-subnet.id,]
@@ -417,21 +417,32 @@ resource "azurerm_cognitive_account" "tier2-cognitive" {
 
 #Create Database in Tier 3
 resource "azurerm_mssql_server" "db-server" {
-  name                         = "db-server-01"
+  name                         = "db-server1"
   resource_group_name          = azurerm_resource_group.ResourceGroup.name
   location                     = azurerm_resource_group.ResourceGroup.location
   version                      = "12.0"
   administrator_login          = "db-adminuser"
   administrator_login_password = "StrongPass@DB-01"
+  public_network_access_enabled = "true"
 }
 
-resource "azurerm_mssql_database" "test" {
+resource "azurerm_mssql_database" "database" {
   name           = "images-db-01-celebrity"
   server_id      = azurerm_mssql_server.db-server.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
   license_type   = "LicenseIncluded"
-  max_size_gb    = 4
-  read_scale     = true
-  sku_name       = "BC_Gen5_2"
-  zone_redundant = true
+  #max_size_gb    = 4
+  sku_name       = "Basic"
+  storage_account_type = "LRS"
+}
+resource "azurerm_mssql_firewall_rule" "firewall-rule" {
+  name             = "FirewallRule1"
+  server_id        = azurerm_mssql_server.db-server.id
+  start_ip_address = "0.0.0.0"
+  end_ip_address   = "255.255.255.255"
+}
+resource "azurerm_mssql_virtual_network_rule" "vnet-rule" {
+  name      = "sql-vnet-rule-1"
+  server_id = azurerm_mssql_server.db-server.id
+  subnet_id = azurerm_subnet.data-tier-subnet.id
 }
