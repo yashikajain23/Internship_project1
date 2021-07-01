@@ -408,7 +408,7 @@ resource "azurerm_cognitive_account" "tier2-cognitive" {
   resource_group_name = azurerm_resource_group.ResourceGroup.name
   kind                = "Face"
   sku_name = "F0"
-  custom_subdomain_name = "identify-face-ip"
+  custom_subdomain_name = "identify-face-ip-r"
   network_acls{
       default_action = "Deny"
       virtual_network_subnet_ids = [azurerm_subnet.app-tier-subnet.id,]
@@ -416,33 +416,39 @@ resource "azurerm_cognitive_account" "tier2-cognitive" {
 }
 
 #Create Database in Tier 3
-resource "azurerm_mssql_server" "db-server" {
-  name                         = "db-server1"
-  resource_group_name          = azurerm_resource_group.ResourceGroup.name
-  location                     = azurerm_resource_group.ResourceGroup.location
-  version                      = "12.0"
-  administrator_login          = "db-adminuser"
-  administrator_login_password = "StrongPass@DB-01"
-  public_network_access_enabled = "true"
+resource "azurerm_mysql_server" "db-server" {
+  name                = "mysql-server-1"
+  location            = azurerm_resource_group.ResourceGroup.location
+  resource_group_name = azurerm_resource_group.ResourceGroup.name
+
+  administrator_login          = "mysqladminu"
+  administrator_login_password = "STRONG_password@4534!"
+
+  sku_name   = "B_Gen5_1"
+  storage_mb =  5120
+  version    = "5.7"
+
+  auto_grow_enabled                 = false
+  backup_retention_days             = 7
+  geo_redundant_backup_enabled      = false
+  infrastructure_encryption_enabled = false
+  public_network_access_enabled     = true
+  ssl_enforcement_enabled           = false
+  
 }
 
-resource "azurerm_mssql_database" "database" {
-  name           = "images-db-01-celebrity"
-  server_id      = azurerm_mssql_server.db-server.id
-  collation      = "SQL_Latin1_General_CP1_CI_AS"
-  license_type   = "LicenseIncluded"
-  #max_size_gb    = 4
-  sku_name       = "Basic"
-  storage_account_type = "LRS"
+resource "azurerm_mysql_database" "mysql-database" {
+  name                = "image-database"
+  resource_group_name = azurerm_resource_group.ResourceGroup.name
+  server_name         = azurerm_mysql_server.db-server.name
+  charset             = "utf8"
+  collation           = "utf8_unicode_ci"
 }
-resource "azurerm_mssql_firewall_rule" "firewall-rule" {
-  name             = "FirewallRule1"
-  server_id        = azurerm_mssql_server.db-server.id
-  start_ip_address = "0.0.0.0"
-  end_ip_address   = "255.255.255.255"
-}
-resource "azurerm_mssql_virtual_network_rule" "vnet-rule" {
-  name      = "sql-vnet-rule-1"
-  server_id = azurerm_mssql_server.db-server.id
-  subnet_id = azurerm_subnet.data-tier-subnet.id
+
+resource "azurerm_mysql_firewall_rule" "db-server-firewall-rule" {
+  name                = "office"
+  resource_group_name = azurerm_resource_group.ResourceGroup.name
+  server_name         = azurerm_mysql_server.db-server.name
+  start_ip_address    = "0.0.0.0"
+  end_ip_address      = "255.255.255.255"
 }
